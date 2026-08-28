@@ -26,7 +26,6 @@ export default {
         const data = await geminiRes.json();
         const commitMessage = data?.candidates?.[0]?.content?.parts?.[0]?.text || "コミットメッセージの生成に失敗しました。";
 
-        // D1 DB への保存処理（DBバインドがある場合）
         const id = crypto.randomUUID().slice(0, 8);
         if (env.DB) {
           try {
@@ -47,7 +46,7 @@ export default {
       }
     }
 
-    // 静的ファイル（HTMLなど）を配信
+    // 静的ファイル（HTMLなど）の配信
     return env.ASSETS.fetch(request);
   }
 };
