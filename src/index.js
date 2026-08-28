@@ -2,15 +2,23 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // APIリクエストの処理
     if (url.pathname === "/api/generate" && request.method === "POST") {
       try {
+        if (!env.GEMINI_API_KEY) {
+          return new Response(JSON.stringify({ 
+            commit: "エラー: Cloudflareの環境変数 GEMINI_API_KEY が設定されていません。" 
+          }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          });
+        }
+
         const body = await request.json();
         const diff = body.diff || body.diffText;
 
         if (!diff) {
-          return new Response(JSON.stringify({ error: "diff is required" }), {
-            status: 400,
+          return new Response(JSON.stringify({ commit: "エラー: diffの内容が空です。" }), {
+            status: 200,
             headers: { "Content-Type": "application/json" }
           });
         }
@@ -26,7 +34,16 @@ export default {
         });
 
         const data = await geminiRes.json();
-        const commitText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "コミットメッセージの生成に失敗しました。";
+
+        // Gemini API側でエラーが返ってきた場合
+        if (!geminiRes.ok || data.error) {
+          const errMsg = data.error?.message || `APIエラー (HTTP ${geminiRes.status})`;
+          return new Response(JSON.stringify({ commit: `Gemini APIエラー: ${errMsg}` }), {
+            headers: { "Content-Type": "application/json" }
+          });
+        }
+
+        const commitText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "コミットメッセージを取得できませんでした。";
 
         // D1 DB への保存処理
         const id = crypto.randomUUID().slice(0, 8);
@@ -38,7 +55,6 @@ export default {
           }
         }
 
-        // フロントエンドの全想定キー名に対応
         return new Response(JSON.stringify({
           commit: commitText,
           commitMessage: commitText,
@@ -49,14 +65,12 @@ export default {
           headers: { "Content-Type": "application/json" }
         });
       } catch (err) {
-        return new Response(JSON.stringify({ error: err.message }), {
-          status: 500,
+        return new Response(JSON.stringify({ commit: `システムエラー: ${err.message}` }), {
           headers: { "Content-Type": "application/json" }
         });
       }
     }
 
-    // 静的ファイル（HTMLなど）の配信
     return env.ASSETS.fetch(request);
   }
 };
