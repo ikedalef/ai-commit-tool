@@ -5,7 +5,10 @@ export default {
     // APIリクエストの処理
     if (url.pathname === "/api/generate" && request.method === "POST") {
       try {
-        const { diff } = await request.json();
+        const body = await request.json();
+        // diff または diffText のどちらでも受け取れるように処理
+        const diff = body.diff || body.diffText;
+
         if (!diff) {
           return new Response(JSON.stringify({ error: "diff is required" }), {
             status: 400,
@@ -26,6 +29,7 @@ export default {
         const data = await geminiRes.json();
         const commitMessage = data?.candidates?.[0]?.content?.parts?.[0]?.text || "コミットメッセージの生成に失敗しました。";
 
+        // D1 DB への保存処理
         const id = crypto.randomUUID().slice(0, 8);
         if (env.DB) {
           try {
