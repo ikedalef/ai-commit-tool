@@ -23,24 +23,43 @@ export default {
 
         const prompt = `あなたはプロのソフトウェアエンジニアです。以下のGitの差分(diff)を解析し、Conventional Commits規約に準拠した簡潔なコミットメッセージを作成してください。\n\n[Diff内容]\n${diff}`;
         
-        // v1 エンドポイントを使用
-        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${env.GEMINI_API_KEY}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }]
-          })
-        });
-
-        const data = await geminiRes.json();
+        // 利用可能なモデル候補（順次フォールバック）
+        const models = [
+          "gemini-1.5-flash-latest",
+          "gemini-1.5-pro-latest",
+          "gemini-pro"
+        ];
 
         let commitText = "";
-        if (!geminiRes.ok || data.error) {
-          commitText = `Gemini APIエラー: ${data.error?.message || `HTTP ${geminiRes.status}`}`;
-        } else {
-          commitText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "コミットメッセージを取得できませんでした。";
+        let lastError = "";
+
+        for (const model of models) {
+          try {
+            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }]
+              })
+            });
+
+            const data = await geminiRes.json();
+            if (geminiRes.ok && data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+              commitText = data.candidates[0].content.parts[0].text;
+              break;
+            } else {
+              lastError = data.error?.message || `HTTP ${geminiRes.status}`;
+            }
+          } catch (e) {
+            lastError = e.message;
+          }
         }
 
+        if (!commitText) {
+          commitText = `Gemini APIエラー: ${lastError}`;
+        }
+
+        // D1 DB への保存処理
         const id = crypto.randomUUID().slice(0, 8);
         if (env.DB && commitText && !commitText.startsWith("Gemini APIエラー")) {
           try {
