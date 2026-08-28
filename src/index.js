@@ -6,7 +6,6 @@ export default {
     if (url.pathname === "/api/generate" && request.method === "POST") {
       try {
         const body = await request.json();
-        // diff または diffText のどちらでも受け取れるように処理
         const diff = body.diff || body.diffText;
 
         if (!diff) {
@@ -27,19 +26,26 @@ export default {
         });
 
         const data = await geminiRes.json();
-        const commitMessage = data?.candidates?.[0]?.content?.parts?.[0]?.text || "コミットメッセージの生成に失敗しました。";
+        const commitText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "コミットメッセージの生成に失敗しました。";
 
         // D1 DB への保存処理
         const id = crypto.randomUUID().slice(0, 8);
         if (env.DB) {
           try {
-            await env.DB.prepare("INSERT INTO commits (id, diff, result, created_at) VALUES (?, ?, ?, ?)").bind(id, diff, commitMessage, new Date().toISOString()).run();
+            await env.DB.prepare("INSERT INTO commits (id, diff, result, created_at) VALUES (?, ?, ?, ?)").bind(id, diff, commitText, new Date().toISOString()).run();
           } catch (dbErr) {
             console.error("DB Error:", dbErr);
           }
         }
 
-        return new Response(JSON.stringify({ commitMessage, id }), {
+        // フロントエンドの全想定キー名に対応
+        return new Response(JSON.stringify({
+          commit: commitText,
+          commitMessage: commitText,
+          message: commitText,
+          result: commitText,
+          id: id
+        }), {
           headers: { "Content-Type": "application/json" }
         });
       } catch (err) {
