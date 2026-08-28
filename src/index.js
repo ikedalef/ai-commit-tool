@@ -5,10 +5,8 @@ export default {
     if (url.pathname === "/api/generate" && request.method === "POST") {
       try {
         if (!env.GEMINI_API_KEY) {
-          return new Response(JSON.stringify({ 
-            commit: "エラー: Cloudflareの環境変数 GEMINI_API_KEY が設定されていません。" 
-          }), {
-            status: 200,
+          const resText = "エラー: Cloudflareの環境変数 GEMINI_API_KEY が設定されていません。";
+          return new Response(JSON.stringify({ commit: resText, commitMessage: resText, message: resText, result: resText }), {
             headers: { "Content-Type": "application/json" }
           });
         }
@@ -17,8 +15,8 @@ export default {
         const diff = body.diff || body.diffText;
 
         if (!diff) {
-          return new Response(JSON.stringify({ commit: "エラー: diffの内容が空です。" }), {
-            status: 200,
+          const resText = "エラー: diffの内容が空です。";
+          return new Response(JSON.stringify({ commit: resText, commitMessage: resText, message: resText, result: resText }), {
             headers: { "Content-Type": "application/json" }
           });
         }
@@ -35,19 +33,15 @@ export default {
 
         const data = await geminiRes.json();
 
-        // Gemini API側でエラーが返ってきた場合
+        let commitText = "";
         if (!geminiRes.ok || data.error) {
-          const errMsg = data.error?.message || `APIエラー (HTTP ${geminiRes.status})`;
-          return new Response(JSON.stringify({ commit: `Gemini APIエラー: ${errMsg}` }), {
-            headers: { "Content-Type": "application/json" }
-          });
+          commitText = `Gemini APIエラー: ${data.error?.message || `HTTP ${geminiRes.status}`}`;
+        } else {
+          commitText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "コミットメッセージを取得できませんでした。";
         }
 
-        const commitText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "コミットメッセージを取得できませんでした。";
-
-        // D1 DB への保存処理
         const id = crypto.randomUUID().slice(0, 8);
-        if (env.DB) {
+        if (env.DB && commitText && !commitText.startsWith("Gemini APIエラー")) {
           try {
             await env.DB.prepare("INSERT INTO commits (id, diff, result, created_at) VALUES (?, ?, ?, ?)").bind(id, diff, commitText, new Date().toISOString()).run();
           } catch (dbErr) {
@@ -65,7 +59,8 @@ export default {
           headers: { "Content-Type": "application/json" }
         });
       } catch (err) {
-        return new Response(JSON.stringify({ commit: `システムエラー: ${err.message}` }), {
+        const errMsg = `システムエラー: ${err.message}`;
+        return new Response(JSON.stringify({ commit: errMsg, commitMessage: errMsg, message: errMsg, result: errMsg }), {
           headers: { "Content-Type": "application/json" }
         });
       }
