@@ -5,12 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI Git Commit & PR Generator | Git差分からコミット文・PR要約を自動生成</title>
   
-  <!-- SEO メタタグ -->
-  <meta name="description" content="Gitの差分（git diff）を貼り付けるだけで、Conventional Commits規約に準拠したコミット文とPR要約を即座に自動生成。完全無料・登録不要。">
+  <meta name="description" content="Gitの差分（git diff）を貼り付けるだけで、Conventional Commits規約に準拠したコミット文とPR要約を即座に自動生成。">
   <meta name="keywords" content="Git,コミットメッセージ,Conventional Commits,プルリクエスト,AI生成,自動化,git diff,開発効率化">
   <meta name="robots" content="index, follow">
 
-  <!-- SNS / OGP プレビュー設定 -->
   <meta property="og:title" content="AI Git Commit & PR Generator | Git差分からコミット文を即座に自動生成">
   <meta property="og:description" content="面倒なコミットメッセージとPR要約の作成をAIが完全自動化。Conventional Commits完全準拠。">
   <meta property="og:type" content="website">
@@ -20,19 +18,22 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen py-8 px-4 flex justify-center items-center">
-  <main class="max-w-2xl w-full bg-slate-800 border border-slate-700 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
+  <main class="max-w-2xl w-full bg-slate-800 border border-slate-700 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6 relative">
     
-    <!-- タイトル・概要 -->
     <header class="text-center space-y-2">
-      <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-teal-300">
-        AI Git Commit & PR Generator
-      </h1>
+      <div class="flex justify-center items-center gap-2">
+        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-teal-300">
+          AI Git Commit & PR Generator
+        </h1>
+      </div>
       <p class="text-xs sm:text-sm text-slate-400">
         Gitの変更差分（diff）を貼り付けるだけで、標準規約に沿ったコミット文とPR要約を即座に自動生成します。
       </p>
+      <div class="text-[11px] text-slate-400 font-medium">
+        本日の無料枠残り: <span id="usageCount" class="text-teal-400 font-bold">2</span> / 2 回
+      </div>
     </header>
 
-    <!-- 3ステップ ガイド -->
     <section class="grid grid-cols-3 gap-3 bg-slate-900/60 p-4 rounded-xl border border-slate-700/60 text-xs">
       <div class="space-y-1">
         <span class="inline-block px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-bold">Step 1</span>
@@ -51,7 +52,6 @@
       </div>
     </section>
 
-    <!-- 入力エリア -->
     <section class="space-y-2">
       <div class="flex justify-between items-center text-xs">
         <label for="diffInput" class="text-slate-300 font-medium">Git Diff（差分テキスト）</label>
@@ -63,7 +63,6 @@
       </button>
     </section>
 
-    <!-- 出力エリア -->
     <section class="space-y-2">
       <div class="flex justify-between items-center text-xs">
         <label class="text-slate-300 font-medium">生成結果</label>
@@ -72,10 +71,23 @@
       <pre id="resultArea" class="bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-slate-300 whitespace-pre-wrap min-h-[90px] flex items-center justify-center text-slate-600">ここに生成結果が表示されます</pre>
     </section>
 
-    <!-- フッター説明 -->
-    <footer class="text-center text-[11px] text-slate-500 border-t border-slate-800 pt-4">
-      Conventional Commits（<code>feat:</code>, <code>fix:</code>, <code>refactor:</code>, <code>docs:</code> 等）に完全準拠
+    <footer class="text-center text-[11px] text-slate-500 border-t border-slate-800 pt-4 flex justify-between items-center">
+      <span>Conventional Commits 準拠</span>
+      <a href="https://buy.stripe.com/6oU5kDbjJeQ2aBbg1E5J601" target="_blank" class="text-teal-400 hover:underline">Proプラン（月額$1）で無制限利用</a>
     </footer>
+
+    <!-- 上限到達時の課金モーダル -->
+    <div id="payModal" class="hidden absolute inset-0 bg-slate-950/90 backdrop-blur-sm rounded-2xl flex flex-col justify-center items-center p-6 text-center space-y-4">
+      <div class="w-12 h-12 rounded-full bg-teal-500/20 text-teal-400 flex items-center justify-center text-2xl font-bold">⚡</div>
+      <h2 class="text-xl font-bold text-white">本日の無料枠（2回）に達しました</h2>
+      <p class="text-xs text-slate-300 max-w-sm">
+        月額1ドルの「Proプラン」に加入すると、生成回数が無制限になり、高速レスポンスが利用可能です。
+      </p>
+      <a href="https://buy.stripe.com/6oU5kDbjJeQ2aBbg1E5J601" target="_blank" class="bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-400 hover:to-blue-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition">
+        月額$1で無制限にする（Proへ登録）
+      </a>
+      <button id="closeModal" class="text-xs text-slate-500 hover:text-slate-400 underline">閉じる</button>
+    </div>
 
   </main>
 
@@ -85,12 +97,39 @@
     const result = document.getElementById('resultArea');
     const copyBtn = document.getElementById('copyBtn');
     const sampleBtn = document.getElementById('sampleBtn');
+    const payModal = document.getElementById('payModal');
+    const closeModal = document.getElementById('closeModal');
+    const usageCount = document.getElementById('usageCount');
+
+    const FREE_LIMIT = 2;
+    const today = new Date().toISOString().slice(0, 10);
+    let storedData = JSON.parse(localStorage.getItem('ai_commit_usage') || '{}');
+    
+    if (storedData.date !== today) {
+      storedData = { date: today, count: 0 };
+      localStorage.setItem('ai_commit_usage', JSON.stringify(storedData));
+    }
+    
+    function updateUsageDisplay() {
+      const remaining = Math.max(0, FREE_LIMIT - storedData.count);
+      usageCount.textContent = remaining;
+    }
+    updateUsageDisplay();
 
     sampleBtn.addEventListener('click', () => {
       input.value = "diff --git a/src/app.js b/src/app.js\n--- a/src/app.js\n+++ b/src/app.js\n@@ -5,3 +5,4 @@\n- const timeout = 1000;\n+ const timeout = 3000;\n+ console.log('connection timeout updated');";
     });
 
+    closeModal.addEventListener('click', () => {
+      payModal.classList.add('hidden');
+    });
+
     btn.addEventListener('click', async () => {
+      if (storedData.count >= FREE_LIMIT) {
+        payModal.classList.remove('hidden');
+        return;
+      }
+
       const diff = input.value.trim();
       if (!diff) {
         result.textContent = 'Gitの差分（diff）を入力してください。';
@@ -113,6 +152,14 @@
         const text = data.commit || data.commitMessage || data.message || data.result || '生成に失敗しました。';
         result.textContent = text;
         copyBtn.classList.remove('hidden');
+        
+        storedData.count += 1;
+        localStorage.setItem('ai_commit_usage', JSON.stringify(storedData));
+        updateUsageDisplay();
+
+        if (storedData.count >= FREE_LIMIT) {
+          setTimeout(() => { payModal.classList.remove('hidden'); }, 1500);
+        }
       } catch (err) {
         result.textContent = '通信エラーが発生しました。';
       } finally {
