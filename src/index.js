@@ -17,13 +17,12 @@ export default {
         const prompt = `あなたはプロのソフトウェアエンジニアです。以下のGitの差分(diff)を解析し、Conventional Commits規約に準拠したコミット文とPR要約を簡潔に出力してください。\n\n[Diff内容]\n${diff}`;
         let commitText = "";
 
-        // 1. Gemini API を利用して生成を試行
+        // 1. Gemini API による生成
         if (env.GEMINI_API_KEY) {
           const candidateModels = [
             "gemini-2.0-flash",
             "gemini-2.5-flash",
-            "gemini-1.5-flash",
-            "gemini-2.0-flash-exp"
+            "gemini-1.5-flash"
           ];
 
           for (const model of candidateModels) {
@@ -48,7 +47,7 @@ export default {
           }
         }
 
-        // 2. API接続に問題があった場合でも確実にコミット文を生成するフォールバック
+        // 2. フォールバック（API不通時も確実に生成）
         if (!commitText) {
           commitText = generateCommitFromDiff(diff);
         }
@@ -87,7 +86,6 @@ export default {
   }
 };
 
-// 差分を解析してConventional Commits形式を自動生成するエンジン
 function generateCommitFromDiff(diff) {
   let type = "chore";
   let description = "update codebase";
