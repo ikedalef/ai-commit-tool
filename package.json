@@ -1,0 +1,18 @@
+{
+  "name": "ai-commit-generator",
+  "version": "1.0.0",
+  "description": "Generate conventional commits using AI directly from terminal",
+  "type": "module",
+  "bin": {
+    "ai-commit": "./bin/cli.js"
+  },
+  "keywords": [
+    "git",
+    "commit",
+    "ai",
+    "conventional-commits",
+    "cli"
+  ],
+  "author": "ikedalef",
+  "license": "MIT"
+}
