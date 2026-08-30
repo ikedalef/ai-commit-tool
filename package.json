@@ -1,5 +1,5 @@
 {
-  "name": "@ikedalef/ai-commit",
+  "name": "@lifeef/ai-commit",
   "version": "1.0.0",
   "description": "Generate conventional commits using AI directly from terminal",
   "type": "module",
@@ -16,6 +16,6 @@
     "conventional-commits",
     "cli"
   ],
-  "author": "ikedalef",
+  "author": "lifeef",
   "license": "MIT"
 }
