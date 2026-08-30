@@ -1,146 +1,112 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Git Commit & PR Generator | Git差分からコミット文・PR要約を自動生成</title>
-  
-  <meta name="description" content="Gitの差分（git diff）を貼り付けるだけで、Conventional Commits規約に準拠したコミット文とPR要約を即座に自動生成。">
-  <meta name="keywords" content="Git,コミットメッセージ,Conventional Commits,プルリクエスト,AI生成,自動化,git diff,開発効率化">
-  <meta name="robots" content="index, follow">
-
-  <meta property="og:title" content="AI Git Commit & PR Generator | Git差分からコミット文を即座に自動生成">
-  <meta property="og:description" content="面倒なコミットメッセージとPR要約の作成をAIが完全自動化。Conventional Commits完全準拠。">
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://ai-commit-tool.ikeda-lef.workers.dev">
-  <meta name="twitter:card" content="summary">
-
+  <title>AI Git Commit & PR Generator</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen py-8 px-4 flex justify-center items-center">
-  <main class="max-w-2xl w-full bg-slate-800 border border-slate-700 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6 relative">
-    
+<body class="bg-slate-900 text-slate-100 min-h-screen py-10 px-4">
+  <div class="max-w-3xl mx-auto space-y-6">
     <header class="text-center space-y-2">
-      <div class="flex justify-center items-center gap-2">
-        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-teal-300">
-          AI Git Commit & PR Generator
-        </h1>
-      </div>
-      <p class="text-xs sm:text-sm text-slate-400">
-        Gitの変更差分（diff）を貼り付けるだけで、標準規約に沿ったコミット文とPR要約を即座に自動生成します。
-      </p>
-      <div class="text-[11px] text-slate-400 font-medium">
-        本日の無料枠残り: <span id="usageCount" class="text-teal-400 font-bold">2</span> / 2 回
-      </div>
+      <h1 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">AI Git Commit & PR Generator</h1>
+      <p class="text-slate-400">Generate standardized Conventional Commits and PR summaries instantly from your git diff.</p>
     </header>
 
-    <section class="grid grid-cols-3 gap-3 bg-slate-900/60 p-4 rounded-xl border border-slate-700/60 text-xs">
-      <div class="space-y-1">
-        <span class="inline-block px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-bold">Step 1</span>
-        <p class="text-slate-300 font-medium">差分を取得</p>
-        <p class="text-slate-500 text-[11px]"><code>git diff</code> の出力をコピー</p>
+    <!-- Terminal Command Banner -->
+    <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+      <div class="flex items-center gap-3">
+        <span class="bg-emerald-500/10 text-emerald-400 text-xs font-semibold px-2.5 py-1 rounded border border-emerald-500/20">CLI</span>
+        <span class="text-sm text-slate-300 font-medium">Run directly in your terminal:</span>
       </div>
-      <div class="space-y-1 border-x border-slate-700/60 px-2">
-        <span class="inline-block px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-bold">Step 2</span>
-        <p class="text-slate-300 font-medium">入力＆生成</p>
-        <p class="text-slate-500 text-[11px]">下の枠に貼り付けて実行</p>
+      <div class="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 font-mono text-sm text-emerald-400 w-full sm:w-auto justify-between">
+        <code>npx ai-commit-pro-cli</code>
+        <button onclick="navigator.clipboard.writeText('npx ai-commit-pro-cli'); alert('Command copied to clipboard!');" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded transition">Copy</button>
       </div>
-      <div class="space-y-1">
-        <span class="inline-block px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-bold">Step 3</span>
-        <p class="text-slate-300 font-medium">即座に反映</p>
-        <p class="text-slate-500 text-[11px]">コミットやPRにそのまま使用</p>
-      </div>
-    </section>
-
-    <section class="space-y-2">
-      <div class="flex justify-between items-center text-xs">
-        <label for="diffInput" class="text-slate-300 font-medium">Git Diff（差分テキスト）</label>
-        <button id="sampleBtn" class="text-blue-400 hover:text-blue-300 underline cursor-pointer">テスト用サンプルを入力</button>
-      </div>
-      <textarea id="diffInput" rows="5" placeholder="+ console.log('Hello World');" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 font-mono text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"></textarea>
-      <button id="generateBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-blue-600/20 active:scale-[0.99] cursor-pointer">
-        コミット文を自動生成する
-      </button>
-    </section>
-
-    <section class="space-y-2">
-      <div class="flex justify-between items-center text-xs">
-        <label class="text-slate-300 font-medium">生成結果</label>
-        <button id="copyBtn" class="hidden text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1 rounded transition cursor-pointer">コピー</button>
-      </div>
-      <pre id="resultArea" class="bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-slate-300 whitespace-pre-wrap min-h-[90px] flex items-center justify-center text-slate-600">ここに生成結果が表示されます</pre>
-    </section>
-
-    <footer class="text-center text-[11px] text-slate-500 border-t border-slate-800 pt-4 flex justify-between items-center">
-      <span>Conventional Commits 準拠</span>
-      <a href="https://buy.stripe.com/6oU5kDbjJeQ2aBbg1E5J601" target="_blank" class="text-teal-400 hover:underline">Proプラン（月額$1）で無制限利用</a>
-    </footer>
-
-    <!-- 上限到達時の課金モーダル -->
-    <div id="payModal" class="hidden absolute inset-0 bg-slate-950/90 backdrop-blur-sm rounded-2xl flex flex-col justify-center items-center p-6 text-center space-y-4">
-      <div class="w-12 h-12 rounded-full bg-teal-500/20 text-teal-400 flex items-center justify-center text-2xl font-bold">⚡</div>
-      <h2 class="text-xl font-bold text-white">本日の無料枠（2回）に達しました</h2>
-      <p class="text-xs text-slate-300 max-w-sm">
-        月額1ドルの「Proプラン」に加入すると、生成回数が無制限になり、高速レスポンスが利用可能です。
-      </p>
-      <a href="https://buy.stripe.com/6oU5kDbjJeQ2aBbg1E5J601" target="_blank" class="bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-400 hover:to-blue-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition">
-        月額$1で無制限にする（Proへ登録）
-      </a>
-      <button id="closeModal" class="text-xs text-slate-500 hover:text-slate-400 underline">閉じる</button>
     </div>
 
-  </main>
+    <main class="bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl space-y-4">
+      <div>
+        <div class="flex justify-between items-center mb-1">
+          <label for="diff" class="block text-sm font-medium text-slate-300">Paste Git Diff:</label>
+          <button onclick="insertSample()" class="text-xs text-blue-400 hover:underline">Insert Sample Diff</button>
+        </div>
+        <textarea id="diff" rows="8" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 font-mono text-xs text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Paste git diff or git diff --staged output here..."></textarea>
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-3 items-center justify-between">
+        <button id="generateBtn" onclick="generate()" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white font-medium px-6 py-2.5 rounded-lg transition shadow">Generate Commit & PR</button>
+        <span id="usageText" class="text-xs text-slate-400">Daily Free Quota: <span id="remainCount" class="font-bold text-white">2</span>/2 left</span>
+      </div>
+
+      <!-- Pro Upgrade Banner -->
+      <div id="proBanner" class="hidden bg-gradient-to-r from-blue-900/40 to-indigo-900/40 border border-blue-500/30 rounded-lg p-4 text-center space-y-2">
+        <p class="text-sm text-blue-200">You've reached your daily free quota (2/2 runs).</p>
+        <a href="https://buy.stripe.com/6oU5kDbjJeQ2aBbg1E5J601" target="_blank" class="inline-block bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 text-white font-bold text-sm px-5 py-2 rounded-lg transition shadow-lg">Unlock Unlimited Pro for $1/month</a>
+      </div>
+
+      <!-- Result Area -->
+      <div id="resultArea" class="hidden space-y-4 pt-4 border-t border-slate-700">
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-1">Generated Commit Message:</label>
+          <div class="relative">
+            <pre id="commitResult" class="bg-slate-950 border border-slate-700 rounded-lg p-3 font-mono text-xs text-emerald-400 whitespace-pre-wrap"></pre>
+            <button onclick="copyText('commitResult')" class="absolute top-2 right-2 bg-slate-800 hover:bg-slate-700 text-xs px-2.5 py-1 rounded border border-slate-600 text-slate-300">Copy</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-1">PR Summary:</label>
+          <div class="relative">
+            <pre id="prResult" class="bg-slate-950 border border-slate-700 rounded-lg p-3 font-mono text-xs text-slate-200 whitespace-pre-wrap"></pre>
+            <button onclick="copyText('prResult')" class="absolute top-2 right-2 bg-slate-800 hover:bg-slate-700 text-xs px-2.5 py-1 rounded border border-slate-600 text-slate-300">Copy</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="text-center text-xs text-slate-500 pt-4 flex justify-between px-2">
+      <span>Conventional Commits Ready</span>
+      <a href="https://buy.stripe.com/6oU5kDbjJeQ2aBbg1E5J601" target="_blank" class="text-blue-400 hover:underline">Pro Plan ($1/mo) Unlimited</a>
+    </footer>
+  </div>
 
   <script>
-    const btn = document.getElementById('generateBtn');
-    const input = document.getElementById('diffInput');
-    const result = document.getElementById('resultArea');
-    const copyBtn = document.getElementById('copyBtn');
-    const sampleBtn = document.getElementById('sampleBtn');
-    const payModal = document.getElementById('payModal');
-    const closeModal = document.getElementById('closeModal');
-    const usageCount = document.getElementById('usageCount');
+    const MAX_FREE = 2;
+    function getTodayKey() { return 'usage_' + new Date().toISOString().slice(0, 10); }
+    function getUsage() { return parseInt(localStorage.getItem(getTodayKey()) || '0', 10); }
+    function setUsage(val) { localStorage.setItem(getTodayKey(), val); updateUI(); }
 
-    const FREE_LIMIT = 2;
-    const today = new Date().toISOString().slice(0, 10);
-    let storedData = JSON.parse(localStorage.getItem('ai_commit_usage') || '{}');
-    
-    if (storedData.date !== today) {
-      storedData = { date: today, count: 0 };
-      localStorage.setItem('ai_commit_usage', JSON.stringify(storedData));
-    }
-    
-    function updateUsageDisplay() {
-      const remaining = Math.max(0, FREE_LIMIT - storedData.count);
-      usageCount.textContent = remaining;
-    }
-    updateUsageDisplay();
-
-    sampleBtn.addEventListener('click', () => {
-      input.value = "diff --git a/src/app.js b/src/app.js\n--- a/src/app.js\n+++ b/src/app.js\n@@ -5,3 +5,4 @@\n- const timeout = 1000;\n+ const timeout = 3000;\n+ console.log('connection timeout updated');";
-    });
-
-    closeModal.addEventListener('click', () => {
-      payModal.classList.add('hidden');
-    });
-
-    btn.addEventListener('click', async () => {
-      if (storedData.count >= FREE_LIMIT) {
-        payModal.classList.remove('hidden');
-        return;
+    function updateUI() {
+      const u = getUsage();
+      const remain = Math.max(0, MAX_FREE - u);
+      document.getElementById('remainCount').innerText = remain;
+      if (remain === 0) {
+        document.getElementById('generateBtn').disabled = true;
+        document.getElementById('generateBtn').classList.add('opacity-50', 'cursor-not-allowed');
+        document.getElementById('proBanner').classList.remove('hidden');
       }
+    }
 
-      const diff = input.value.trim();
-      if (!diff) {
-        result.textContent = 'Gitの差分（diff）を入力してください。';
-        result.classList.remove('items-center', 'justify-center', 'text-slate-600');
-        return;
-      }
+    function insertSample() {
+      document.getElementById('diff').value = `diff --git a/src/auth.js b/src/auth.js
+index 83a1b2c..94f2d3e 100644
+--- a/src/auth.js
++++ b/src/auth.js
+@@ -10,4 +10,6 @@ export function verifyToken(token) {
++  if (!token) throw new Error('Token required');
++  return jwt.verify(token, process.env.JWT_SECRET);
+ }`;
+    }
 
+    async function generate() {
+      const diff = document.getElementById('diff').value.trim();
+      if (!diff) return alert('Please enter git diff');
+      if (getUsage() >= MAX_FREE) return;
+
+      const btn = document.getElementById('generateBtn');
+      btn.innerText = 'Generating...';
       btn.disabled = true;
-      btn.textContent = '生成中...';
-      result.textContent = 'AIが解析中...';
-      result.classList.remove('items-center', 'justify-center', 'text-slate-600');
 
       try {
         const res = await fetch('/api/generate', {
@@ -149,30 +115,30 @@
           body: JSON.stringify({ diff })
         });
         const data = await res.json();
-        const text = data.commit || data.commitMessage || data.message || data.result || '生成に失敗しました。';
-        result.textContent = text;
-        copyBtn.classList.remove('hidden');
         
-        storedData.count += 1;
-        localStorage.setItem('ai_commit_usage', JSON.stringify(storedData));
-        updateUsageDisplay();
-
-        if (storedData.count >= FREE_LIMIT) {
-          setTimeout(() => { payModal.classList.remove('hidden'); }, 1500);
+        if (data.commit || data.pr) {
+          document.getElementById('commitResult').innerText = data.commit || '';
+          document.getElementById('prResult').innerText = data.pr || '';
+          document.getElementById('resultArea').classList.remove('hidden');
+          setUsage(getUsage() + 1);
+        } else {
+          alert('Generation failed: ' + (data.error || 'Unknown error'));
         }
-      } catch (err) {
-        result.textContent = '通信エラーが発生しました。';
+      } catch (e) {
+        alert('Network error: ' + e.message);
       } finally {
+        btn.innerText = 'Generate Commit & PR';
         btn.disabled = false;
-        btn.textContent = 'コミット文を自動生成する';
+        updateUI();
       }
-    });
+    }
 
-    copyBtn.addEventListener('click', () => {
-      navigator.clipboard.writeText(result.textContent);
-      copyBtn.textContent = 'コピー完了！';
-      setTimeout(() => { copyBtn.textContent = 'コピー'; }, 2000);
-    });
+    function copyText(id) {
+      const text = document.getElementById(id).innerText;
+      navigator.clipboard.writeText(text).then(() => alert('Copied to clipboard!'));
+    }
+
+    updateUI();
   </script>
 </body>
 </html>
