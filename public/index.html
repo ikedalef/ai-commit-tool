@@ -13,7 +13,7 @@
       <p class="text-slate-400">Generate standardized Conventional Commits and PR summaries instantly from your git diff.</p>
     </header>
 
-    <!-- Terminal Command Banner -->
+    <!-- CLI Banner -->
     <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
       <div class="flex items-center gap-3">
         <span class="bg-emerald-500/10 text-emerald-400 text-xs font-semibold px-2.5 py-1 rounded border border-emerald-500/20">CLI</span>
@@ -21,8 +21,17 @@
       </div>
       <div class="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 font-mono text-sm text-emerald-400 w-full sm:w-auto justify-between">
         <code>npx ai-commit-pro-cli</code>
-        <button onclick="navigator.clipboard.writeText('npx ai-commit-pro-cli'); alert('Command copied to clipboard!');" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded transition">Copy</button>
+        <button onclick="navigator.clipboard.writeText('npx ai-commit-pro-cli'); alert('Command copied!');" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded transition">Copy</button>
       </div>
+    </div>
+
+    <!-- Pro Key Bar -->
+    <div class="bg-slate-800/50 border border-slate-700/80 rounded-xl p-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-2 w-full sm:w-auto">
+        <span class="text-xs font-semibold uppercase text-blue-400">Pro License</span>
+        <input id="proKeyInput" type="password" placeholder="Enter Pro Key (e.g. pro_live_...)" class="bg-slate-950 border border-slate-700 rounded px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full sm:w-64" oninput="saveProKey(this.value)">
+      </div>
+      <div id="keyStatus" class="text-xs text-slate-400">Free Tier (2 runs/day)</div>
     </div>
 
     <main class="bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl space-y-4">
@@ -39,9 +48,9 @@
         <span id="usageText" class="text-xs text-slate-400">Daily Free Quota: <span id="remainCount" class="font-bold text-white">2</span>/2 left</span>
       </div>
 
-      <!-- Pro Upgrade Banner -->
+      <!-- Upgrade Banner -->
       <div id="proBanner" class="hidden bg-gradient-to-r from-blue-900/40 to-indigo-900/40 border border-blue-500/30 rounded-lg p-4 text-center space-y-2">
-        <p class="text-sm text-blue-200">You've reached your daily free quota (2/2 runs).</p>
+        <p class="text-sm text-blue-200">Daily free quota exhausted.</p>
         <a href="https://buy.stripe.com/6oU5kDbjJeQ2aBbg1E5J601" target="_blank" class="inline-block bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 text-white font-bold text-sm px-5 py-2 rounded-lg transition shadow-lg">Unlock Unlimited Pro for $1/month</a>
       </div>
 
@@ -76,10 +85,25 @@
     function getTodayKey() { return 'usage_' + new Date().toISOString().slice(0, 10); }
     function getUsage() { return parseInt(localStorage.getItem(getTodayKey()) || '0', 10); }
     function setUsage(val) { localStorage.setItem(getTodayKey(), val); updateUI(); }
+    function getProKey() { return localStorage.getItem('ai_commit_pro_key') || ''; }
+    function saveProKey(key) { localStorage.setItem('ai_commit_pro_key', key.trim()); updateUI(); }
 
     function updateUI() {
-      const u = getUsage();
-      const remain = Math.max(0, MAX_FREE - u);
+      const key = getProKey();
+      document.getElementById('proKeyInput').value = key;
+      const isPro = key.startsWith('pro_live_');
+      
+      if (isPro) {
+        document.getElementById('keyStatus').innerHTML = '<span class="text-emerald-400 font-bold">✓ Pro Active (Unlimited)</span>';
+        document.getElementById('usageText').innerText = 'Pro Tier: Unlimited';
+        document.getElementById('proBanner').classList.add('hidden');
+        document.getElementById('generateBtn').disabled = false;
+        document.getElementById('generateBtn').classList.remove('opacity-50', 'cursor-not-allowed');
+        return;
+      }
+
+      document.getElementById('keyStatus').innerText = 'Free Tier (2 runs/day)';
+      const remain = Math.max(0, MAX_FREE - getUsage());
       document.getElementById('remainCount').innerText = remain;
       if (remain === 0) {
         document.getElementById('generateBtn').disabled = true;
@@ -102,7 +126,8 @@ index 83a1b2c..94f2d3e 100644
     async function generate() {
       const diff = document.getElementById('diff').value.trim();
       if (!diff) return alert('Please enter git diff');
-      if (getUsage() >= MAX_FREE) return;
+      const proKey = getProKey();
+      if (!proKey.startsWith('pro_live_') && getUsage() >= MAX_FREE) return;
 
       const btn = document.getElementById('generateBtn');
       btn.innerText = 'Generating...';
@@ -111,8 +136,11 @@ index 83a1b2c..94f2d3e 100644
       try {
         const res = await fetch('/api/generate', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ diff })
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': proKey ? 'Bearer ' + proKey : ''
+          },
+          body: JSON.stringify({ diff, apiKey: proKey })
         });
         const data = await res.json();
         
@@ -120,9 +148,9 @@ index 83a1b2c..94f2d3e 100644
           document.getElementById('commitResult').innerText = data.commit || '';
           document.getElementById('prResult').innerText = data.pr || '';
           document.getElementById('resultArea').classList.remove('hidden');
-          setUsage(getUsage() + 1);
+          if (!proKey.startsWith('pro_live_')) setUsage(getUsage() + 1);
         } else {
-          alert('Generation failed: ' + (data.error || 'Unknown error'));
+          alert('Error: ' + (data.error || 'Unknown error'));
         }
       } catch (e) {
         alert('Network error: ' + e.message);
