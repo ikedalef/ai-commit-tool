@@ -1,6 +1,7 @@
 {
   "name": "ai-commit-pro-cli",
-  "version": "1.0.1",
+  "version": "1.0.2
+",
   "description": "Generate conventional commits using AI directly from terminal",
   "type": "module",
   "bin": {
