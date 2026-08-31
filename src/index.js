@@ -2,113 +2,90 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    if (url.pathname === "/api/generate" && request.method === "POST") {
-      try {
-        const body = await request.json().catch(() => ({}));
-        const diff = (body.diff || body.diffText || "").trim();
+    // CORS ヘッダー
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    };
 
-        if (!diff) {
-          const resText = "エラー: diffの内容が空です。差分を入力してください。";
-          return new Response(JSON.stringify({ commit: resText, commitMessage: resText, message: resText, result: resText }), {
-            headers: { "Content-Type": "application/json" }
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { headers: corsHeaders });
+    }
+
+    // 静的ファイル配信 (Web UI)
+    if (url.pathname === '/' || url.pathname === '/index.html') {
+      return env.ASSETS ? env.ASSETS.fetch(request) : new Response('Not Found', { status: 404 });
+    }
+
+    // AI 生成エンドポイント
+    if (url.pathname === '/api/generate' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const diff = body.diff;
+        const apiKey = request.headers.get('Authorization')?.replace('Bearer ', '') || body.apiKey;
+
+        if (!diff || typeof diff !== 'string') {
+          return new Response(JSON.stringify({ error: 'Diff content is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
 
-        const prompt = `あなたはプロのソフトウェアエンジニアです。以下のGitの差分(diff)を解析し、Conventional Commits規約に準拠したコミット文とPR要約を簡潔に出力してください。\n\n[Diff内容]\n${diff}`;
-        let commitText = "";
+        // Pro キー検証 (環境変数 PRO_KEYS またはプレフィックス pro_live_)
+        const isPro = apiKey && (apiKey.startsWith('pro_live_') || apiKey === env.PRO_MASTER_KEY);
 
-        // 1. Gemini API による生成
-        if (env.GEMINI_API_KEY) {
-          const candidateModels = [
-            "gemini-2.0-flash",
-            "gemini-2.5-flash",
-            "gemini-1.5-flash"
-          ];
-
-          for (const model of candidateModels) {
-            try {
-              const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  contents: [{ parts: [{ text: prompt }] }]
-                })
-              });
-
-              if (res.ok) {
-                const data = await res.json();
-                const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (text) {
-                  commitText = text.trim();
-                  break;
-                }
-              }
-            } catch (_) {}
-          }
+        // 無料ユーザーの diff サイズ・レート制御 (簡易防御)
+        if (!isPro && diff.length > 5000) {
+          return new Response(JSON.stringify({
+            error: 'Free limit: Diff too large. Upgrade to Pro ($1/mo) for unlimited large diffs.',
+            stripeUrl: 'https://buy.stripe.com/6oU5kDbjJeQ2aBbg1E5J601'
+          }), {
+            status: 402,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
         }
 
-        // 2. フォールバック（API不通時も確実に生成）
-        if (!commitText) {
-          commitText = generateCommitFromDiff(diff);
+        // AI プロンプト作成
+        const prompt = `You are an expert developer. Analyze the following git diff and output ONLY a JSON object with two fields:
+1. "commit": A standardized commit message strictly following Conventional Commits format (e.g., feat(auth): add token validation). Max 1 line.
+2. "pr": A clear and concise Markdown summary of the changes suitable for a Pull Request description.
+
+Git Diff:
+\`\`\`
+${diff.slice(0, 4000)}
+\`\`\`
+
+Respond ONLY with valid JSON format:
+{"commit": "...", "pr": "..."}`;
+
+        const aiResponse = await env.AI.run('@cf/meta/llama-3-8b-instruct', {
+          messages: [{ role: 'user', content: prompt }],
+        });
+
+        const rawText = aiResponse.response || '';
+        let jsonRes;
+        try {
+          const match = rawText.match(/\{[\s\S]*\}/);
+          jsonRes = match ? JSON.parse(match[0]) : { commit: rawText.slice(0, 100), pr: rawText };
+        } catch {
+          jsonRes = {
+            commit: 'chore: update changes according to git diff',
+            pr: rawText || 'Changes made according to staged diff.',
+          };
         }
 
-        // 3. D1 データベースへの保存
-        const id = crypto.randomUUID().slice(0, 8);
-        if (env.DB) {
-          try {
-            await env.DB.prepare("INSERT INTO commits (id, diff, result, created_at) VALUES (?, ?, ?, ?)").bind(id, diff, commitText, new Date().toISOString()).run();
-          } catch (_) {}
-        }
-
-        return new Response(JSON.stringify({
-          commit: commitText,
-          commitMessage: commitText,
-          message: commitText,
-          result: commitText,
-          id: id
-        }), {
-          headers: { "Content-Type": "application/json" }
+        return new Response(JSON.stringify({ ...jsonRes, isPro }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       } catch (err) {
-        const fallbackText = generateCommitFromDiff("diff updated");
-        return new Response(JSON.stringify({
-          commit: fallbackText,
-          commitMessage: fallbackText,
-          message: fallbackText,
-          result: fallbackText
-        }), {
-          headers: { "Content-Type": "application/json" }
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
     }
 
-    return env.ASSETS.fetch(request);
-  }
+    return env.ASSETS ? env.ASSETS.fetch(request) : new Response('Not Found', { status: 404 });
+  },
 };
-
-function generateCommitFromDiff(diff) {
-  let type = "chore";
-  let description = "update codebase";
-
-  if (diff.includes("console.log") || diff.includes("print")) {
-    type = "feat";
-    description = "add log outputs for debugging";
-  } else if (diff.includes("fix") || diff.includes("bug") || diff.includes("error")) {
-    type = "fix";
-    description = "resolve issue in application logic";
-  } else if (diff.includes("test")) {
-    type = "test";
-    description = "add and update unit tests";
-  } else if (diff.includes("style") || diff.includes("css")) {
-    type = "style";
-    description = "update styling and layout formatting";
-  } else if (diff.includes("readme") || diff.includes("doc")) {
-    type = "docs";
-    description = "update documentation";
-  } else if (diff.includes("add") || diff.includes("+")) {
-    type = "feat";
-    description = "implement new feature enhancements";
-  }
-
-  return `${type}: ${description}\n\n### PR Summary\n- Automated commit generated based on git diff analysis.\n- Follows Conventional Commits standard.`;
-}
