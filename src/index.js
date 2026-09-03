@@ -1,13 +1,6 @@
-export interface Env {
-  DB: D1Database;
-  STRIPE_WEBHOOK_SECRET: string;
-  GEMINI_API_KEY: string;
-  STRIPE_PAYMENT_LINK?: string;
-}
-
 const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/eVqaEXafF6jw6kV0jG5J603";
 
-const jsonResponse = (data: unknown, status = 200) => {
+const jsonResponse = (data, status = 200) => {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
@@ -20,9 +13,9 @@ const jsonResponse = (data: unknown, status = 200) => {
 };
 
 // Web Crypto API による Stripe 署名検証
-async function verifyStripeSignature(payload: string, sigHeader: string, secret: string): Promise<boolean> {
+async function verifyStripeSignature(payload, sigHeader, secret) {
   try {
-    const parts = sigHeader.split(",").reduce((acc: Record<string, string>, item) => {
+    const parts = sigHeader.split(",").reduce((acc, item) => {
       const [k, v] = item.trim().split("=");
       if (k && v) acc[k] = v;
       return acc;
@@ -55,7 +48,7 @@ async function verifyStripeSignature(payload: string, sigHeader: string, secret:
   }
 }
 
-function generateSecureApiKey(): string {
+function generateSecureApiKey() {
   const randomBytes = new Uint8Array(24);
   crypto.getRandomValues(randomBytes);
   const hex = Array.from(randomBytes)
@@ -65,14 +58,14 @@ function generateSecureApiKey(): string {
 }
 
 export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     if (request.method === "OPTIONS") {
       return jsonResponse({ ok: true });
     }
 
-    // 1. Stripe Webhook: 決済完了で即時 Pro API キー自動発行・プロビジョニング
+    // 1. Stripe Webhook: 決済完了で即時 Pro API キー自動発行
     if (url.pathname === "/api/webhook" && request.method === "POST") {
       const rawBody = await request.text();
       const sigHeader = request.headers.get("Stripe-Signature") || "";
@@ -114,13 +107,13 @@ export default {
     // 2. コアAPI: Conventional Commit 生成 & 利用枠制限
     if (url.pathname === "/api/generate" && request.method === "POST") {
       const apiKey = request.headers.get("X-API-Key") || request.headers.get("Authorization")?.replace("Bearer ", "");
-      const body = await request.json() as { diff?: string; email?: string };
+      const body = await request.json().catch(() => ({}));
 
       if (!body.diff) {
         return jsonResponse({ error: "Diff content is required" }, 400);
       }
 
-      let user: any = null;
+      let user = null;
 
       if (apiKey) {
         user = await env.DB.prepare("SELECT * FROM users WHERE api_key = ?").bind(apiKey).first();
@@ -169,7 +162,7 @@ export default {
         return jsonResponse({ error: "AI Inference failed" }, 500);
       }
 
-      const aiData: any = await aiRes.json();
+      const aiData = await aiRes.json();
       const commitMessage = aiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "chore: update codebase";
 
       await env.DB.prepare("UPDATE users SET usage_count = usage_count + 1 WHERE id = ?").bind(user.id).run();
@@ -184,13 +177,13 @@ export default {
 
     // 3. 24/7 自律型 AI サポート: チケット自動完結
     if (url.pathname === "/api/support" && request.method === "POST") {
-      const { email, query } = await request.json() as { email: string; query: string };
+      const { email, query } = await request.json().catch(() => ({}));
 
       if (!query) {
         return jsonResponse({ error: "Query is required" }, 400);
       }
 
-      const systemPrompt = `You are the autonomous 24/7 support lead for 'AI Commit Pro'.
+      const systemPrompt = `You are the autonomous 24/7 support lead for 'AI Commit & PR Pro'.
 You solve customer inquiries immediately and politely without escalating to human founders.
 Product knowledge:
 - Core product: AI commit & PR generator CLI (npx ai-commit-pro-cli) and Web app.
@@ -212,7 +205,7 @@ Keep answers concise, actionable, and courteous.`;
         }),
       });
 
-      const aiData: any = await aiRes.json();
+      const aiData = await aiRes.json();
       const answer = aiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "Thank you for reaching out. Please verify your API key and retry.";
 
       const ticketId = "tkt_" + crypto.randomUUID();
@@ -239,7 +232,7 @@ Keep answers concise, actionable, and courteous.`;
   },
 };
 
-function getLandingPageHtml(paymentLink: string): string {
+function getLandingPageHtml(paymentLink) {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -253,7 +246,6 @@ function getLandingPageHtml(paymentLink: string): string {
 </head>
 <body class="min-h-screen flex flex-col justify-between">
   <div class="max-w-4xl mx-auto px-4 py-12 w-full">
-    <!-- Header -->
     <header class="flex justify-between items-center pb-8 border-b border-gray-800">
       <div class="flex items-center space-x-3">
         <span class="text-2xl font-bold text-white tracking-tight">⚡ AI Commit & PR Pro</span>
@@ -264,7 +256,6 @@ function getLandingPageHtml(paymentLink: string): string {
       </a>
     </header>
 
-    <!-- Hero -->
     <section class="text-center my-12">
       <h1 class="text-4xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">
         Never write git commits or PR notes manually again.
@@ -279,15 +270,14 @@ function getLandingPageHtml(paymentLink: string): string {
       </div>
     </section>
 
-    <!-- Web Generator Tool -->
     <section class="bg-gray-900/80 border border-gray-800 rounded-xl p-6 shadow-xl mb-12">
       <h2 class="text-lg font-semibold text-white mb-4">Web Audit & Generator</h2>
       <div class="space-y-4">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <input id="apiKeyInput" type="text" placeholder="API Key (Leave empty for Free Tier)" class="bg-gray-950 border border-gray-800 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-blue-500">
-          <input id="emailInput" type="email" placeholder="Your Email (for Free tier tracking)" class="bg-gray-950 border border-gray-800 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-blue-500">
+          <input id="apiKeyInput" type="text" placeholder="API Key (Leave empty for Free Tier)" class="bg-gray-950 border border-gray-800 rounded-lg p-3 text-sm text-white">
+          <input id="emailInput" type="email" placeholder="Your Email (for Free tier tracking)" class="bg-gray-950 border border-gray-800 rounded-lg p-3 text-sm text-white">
         </div>
-        <textarea id="diffInput" rows="5" placeholder="Paste your 'git diff --staged' here..." class="w-full bg-gray-950 border border-gray-800 rounded-lg p-3 text-sm font-mono text-white focus:outline-none focus:border-blue-500"></textarea>
+        <textarea id="diffInput" rows="5" placeholder="Paste your 'git diff --staged' here..." class="w-full bg-gray-950 border border-gray-800 rounded-lg p-3 text-sm font-mono text-white"></textarea>
         <button onclick="generateCommit()" id="genBtn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-lg transition">
           Generate Commit Message
         </button>
@@ -295,7 +285,6 @@ function getLandingPageHtml(paymentLink: string): string {
       <div id="resultBox" class="mt-4 p-4 rounded-lg bg-gray-950 border border-gray-800 font-mono text-emerald-400 hidden"></div>
     </section>
 
-    <!-- Pricing Card -->
     <section class="bg-gradient-to-b from-gray-900 to-gray-950 border border-gray-800 rounded-xl p-6 mb-12 text-center">
       <h3 class="text-xl font-bold text-white mb-2">Pro Developer Plan</h3>
       <p class="text-3xl font-extrabold text-white my-3">$11 <span class="text-sm text-gray-400 font-normal">/ month</span></p>
@@ -305,7 +294,6 @@ function getLandingPageHtml(paymentLink: string): string {
       </a>
     </section>
 
-    <!-- 24/7 AI Support -->
     <section class="bg-gray-900/40 border border-gray-800 rounded-xl p-6">
       <div class="flex items-center space-x-2 mb-3">
         <div class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
@@ -313,7 +301,7 @@ function getLandingPageHtml(paymentLink: string): string {
       </div>
       <p class="text-xs text-gray-400 mb-4">Instant answers regarding Pro API keys, CLI setup, and billing queries.</p>
       <div class="flex gap-2">
-        <input id="supportQuery" type="text" placeholder="e.g. How do I setup the CLI with my Pro key?" class="flex-1 bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+        <input id="supportQuery" type="text" placeholder="e.g. How do I setup the CLI with my Pro key?" class="flex-1 bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white">
         <button onclick="askSupport()" class="bg-gray-800 hover:bg-gray-700 text-white text-sm px-4 py-2 rounded-lg transition">Ask</button>
       </div>
       <div id="supportAnswer" class="mt-3 text-sm text-gray-300 p-3 bg-gray-950 rounded-lg border border-gray-800/80 hidden"></div>
